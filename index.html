@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Observatorio Bibliométrico del Perú · Scopus 2020–2025</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<style>
+  :root{
+    --bg:#0f1c24; --panel:#ffffff; --ink:#13313d; --muted:#5b6b73;
+    --accent:#1f6f8b; --accent2:#e07b39; --line:#e2e8ec; --soft:#f3f7f9;
+    --good:#1a9850; --bad:#d73027;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       color:var(--ink);background:#eef3f5;}
+  header{background:linear-gradient(135deg,#13414f,#1f6f8b);color:#fff;padding:22px 26px;}
+  header h1{margin:0;font-size:22px;font-weight:700;}
+  header p{margin:4px 0 0;font-size:13px;opacity:.85;}
+  .wrap{max-width:1240px;margin:0 auto;padding:18px;}
+  .toolbar{display:flex;flex-wrap:wrap;gap:14px;align-items:center;background:var(--panel);
+           border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:16px;}
+  .seg{display:inline-flex;border:1px solid var(--accent);border-radius:9px;overflow:hidden;}
+  .seg button{border:0;background:#fff;color:var(--accent);padding:9px 16px;font-size:14px;
+              font-weight:600;cursor:pointer;}
+  .seg button.active{background:var(--accent);color:#fff;}
+  .searchbox{flex:1;min-width:240px;position:relative;}
+  .searchbox input{width:100%;padding:10px 12px;font-size:15px;border:1px solid var(--line);
+                   border-radius:9px;outline:none;}
+  .searchbox input:focus{border-color:var(--accent);}
+  .results{position:absolute;z-index:30;top:46px;left:0;right:0;background:#fff;border:1px solid var(--line);
+           border-radius:9px;max-height:340px;overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,.12);display:none;}
+  .results.show{display:block;}
+  .results div{padding:9px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--soft);
+               display:flex;justify-content:space-between;gap:10px;}
+  .results div:hover{background:var(--soft);}
+  .results .meta{color:var(--muted);font-size:12px;white-space:nowrap;}
+  .hint{font-size:12px;color:var(--muted);}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 16px;}
+  .chip{display:inline-flex;align-items:center;gap:8px;background:#fff;border-radius:20px;
+        padding:6px 8px 6px 12px;font-size:13px;font-weight:600;border:2px solid;}
+  .chip button{border:0;background:transparent;cursor:pointer;font-size:15px;line-height:1;color:inherit;}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px;}
+  .panel h2{margin:0 0 12px;font-size:16px;color:var(--ink);}
+  table{border-collapse:collapse;width:100%;font-size:13px;}
+  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);}
+  th{background:var(--soft);font-weight:700;}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .rank tr{cursor:pointer;}
+  .rank tr:hover td{background:var(--soft);}
+  .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:700;}
+  .pill.g{background:#e3f3e6;color:var(--good);} .pill.b{background:#fbe3e1;color:var(--bad);}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:880px){.grid2{grid-template-columns:1fr;}}
+  .plot{width:100%;height:380px;}
+  .empty{color:var(--muted);font-size:14px;padding:8px 0;}
+  .legendnote{font-size:12px;color:var(--muted);margin-top:6px;}
+  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
+  select,.btn{padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:#fff;cursor:pointer;}
+  .btn.accent{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600;}
+  footer{color:var(--muted);font-size:12px;text-align:center;padding:20px;}
+  .areas{font-size:12px;color:var(--muted);}
+</style>
+</head>
+<body>
+<header>
+  <h1>Observatorio Bibliométrico del Perú</h1>
+  <p>Producción científica indexada en Scopus · 2020–2025 · Busca, selecciona y compara investigadores e instituciones</p>
+</header>
+
+<div class="wrap">
+  <div class="toolbar">
+    <div class="seg" id="seg">
+      <button data-mode="inst" class="active">Instituciones</button>
+      <button data-mode="res">Investigadores</button>
+    </div>
+    <div class="searchbox">
+      <input id="search" type="text" placeholder="Escribe un nombre para buscar…" autocomplete="off">
+      <div class="results" id="results"></div>
+    </div>
+    <span class="hint" id="counthint"></span>
+  </div>
+
+  <div class="chips" id="chips"></div>
+
+  <!-- Comparación (cuando hay selección) -->
+  <div id="comparison" style="display:none;">
+    <div class="panel">
+      <h2>Tabla comparativa de métricas</h2>
+      <div id="cmpTable"></div>
+      <div class="legendnote">FWCI = Impacto Normalizado por Campo (1,0 = promedio mundial). «% Top 10%» = trabajos en el 10% más citado del mundo. Las celdas verdes/rojas comparan con la referencia nacional.</div>
+    </div>
+    <div class="grid2">
+      <div class="panel"><h2>Publicaciones por año</h2><div id="plotYear" class="plot"></div></div>
+      <div class="panel"><h2>Indicadores de impacto y apertura (%)</h2><div id="plotPct" class="plot"></div></div>
+    </div>
+    <div class="grid2">
+      <div class="panel"><h2>FWCI medio</h2><div id="plotFwci" class="plot"></div></div>
+      <div class="panel"><h2>Volumen vs. citas por publicación</h2><div id="plotScatter" class="plot"></div></div>
+    </div>
+  </div>
+
+  <!-- Ranking por defecto -->
+  <div class="panel" id="rankPanel">
+    <h2 id="rankTitle">Ranking nacional</h2>
+    <div class="controls">
+      <label>Ordenar por:
+        <select id="sortby">
+          <option value="n_pubs">Nº de publicaciones</option>
+          <option value="cit_total">Citas totales</option>
+          <option value="cit_mean">Citas por publicación</option>
+          <option value="fwci_mean">FWCI medio</option>
+          <option value="pct_top10">% en Top 10% mundial</option>
+          <option value="pct_q1">% en Q1</option>
+          <option value="pct_intl">% colaboración internacional</option>
+        </select>
+      </label>
+      <label>Mín. publicaciones: <input id="minpubs" type="number" value="20" min="5" style="width:70px;padding:6px;border:1px solid var(--line);border-radius:8px;"></label>
+      <span class="hint">Haz clic en una fila para añadirla a la comparación.</span>
+    </div>
+    <div id="rankTable"></div>
+  </div>
+
+  <footer>
+    Fuente: Scopus / SciVal (actualizado a mayo 2026). Dashboard estático generado con R + Plotly.
+    El conteo por entidad refleja apariciones en publicaciones con afiliación peruana.
+  </footer>
+</div>
+
+<script src="data.js"></script>
+<script>
+const PALETTE = ['#1f6f8b','#e07b39','#1a9850','#8e44ad','#d73027','#2c7fb8','#c9a227','#16a085','#d6336c','#34495e'];
+let MODE = 'inst';
+let DATA = {res: window.RESEARCHERS, inst: window.INSTITUTIONS};
+const NAT = window.NATIONAL;
+let selected = {res: [], inst: []};   // arrays of ids
+
+// índice de búsqueda
+['res','inst'].forEach(k => DATA[k].forEach(d => d._s = d.name.toLowerCase()));
+
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString('es-PE');
+const curList = () => DATA[MODE];
+const curSel  = () => selected[MODE];
+const findById = id => curList().find(d => d.id === id);
+
+// ---------- Búsqueda ----------
+const search = $('search'), results = $('results');
+search.addEventListener('input', () => renderResults(search.value.trim().toLowerCase()));
+search.addEventListener('focus', () => { if(search.value.trim()) renderResults(search.value.trim().toLowerCase()); });
+document.addEventListener('click', e => { if(!e.target.closest('.searchbox')) results.classList.remove('show'); });
+
+function renderResults(q){
+  if(!q){ results.classList.remove('show'); return; }
+  const hits = curList().filter(d => d._s.includes(q)).slice(0,60);
+  results.innerHTML = hits.map(d =>
+    `<div data-id="${escapeAttr(d.id)}"><span>${escapeHtml(d.name)}</span>
+      <span class="meta">${fmt(d.n_pubs)} pubs · FWCI ${d.fwci_mean}</span></div>`).join('')
+    || '<div class="empty" style="padding:12px">Sin resultados</div>';
+  results.classList.add('show');
+  results.querySelectorAll('div[data-id]').forEach(el =>
+    el.onclick = () => { addSel(el.getAttribute('data-id')); search.value=''; results.classList.remove('show'); });
+}
+
+// ---------- Selección ----------
+function addSel(id){
+  const s = curSel();
+  if(s.includes(id)) return;
+  if(s.length >= 10){ alert('Máximo 10 elementos para comparar.'); return; }
+  s.push(id); render();
+}
+function removeSel(id){ selected[MODE] = curSel().filter(x => x!==id); render(); }
+function colorFor(i){ return PALETTE[i % PALETTE.length]; }
+
+function renderChips(){
+  const s = curSel();
+  $('chips').innerHTML = s.map((id,i) => {
+    const d = findById(id); if(!d) return '';
+    return `<span class="chip" style="border-color:${colorFor(i)};color:${colorFor(i)}">
+      ${escapeHtml(d.name)} <button data-id="${escapeAttr(id)}">&times;</button></span>`;
+  }).join('');
+  $('chips').querySelectorAll('button').forEach(b =>
+    b.onclick = () => removeSel(b.getAttribute('data-id')));
+}
+
+// ---------- Modo (toggle) ----------
+$('seg').querySelectorAll('button').forEach(b => b.onclick = () => {
+  MODE = b.dataset.mode;
+  $('seg').querySelectorAll('button').forEach(x => x.classList.toggle('active', x===b));
+  search.placeholder = MODE==='inst' ? 'Busca una institución…' : 'Busca un investigador (apellido, inicial)…';
+  $('rankTitle').textContent = MODE==='inst' ? 'Ranking de instituciones' : 'Ranking de investigadores';
+  render();
+});
+
+// ---------- Ranking ----------
+$('sortby').onchange = renderRank;
+$('minpubs').oninput = renderRank;
+function renderRank(){
+  const key = $('sortby').value;
+  const minp = Math.max(5, +$('minpubs').value || 5);
+  const rows = curList().filter(d => d.n_pubs >= minp)
+    .sort((a,b) => b[key]-a[key]).slice(0,40);
+  const head = `<table class="rank"><thead><tr>
+    <th>#</th><th>${MODE==='inst'?'Institución':'Investigador'}</th>
+    <th class="num">Pubs</th><th class="num">Citas</th><th class="num">Citas/pub</th>
+    <th class="num">FWCI</th><th class="num">% Top10%</th><th class="num">% Q1</th><th class="num">% Intl</th>
+    </tr></thead><tbody>`;
+  const body = rows.map((d,i) => `<tr data-id="${escapeAttr(d.id)}">
+    <td>${i+1}</td><td>${escapeHtml(d.name)}<div class="areas">${escapeHtml(shortAreas(d.areas))}</div></td>
+    <td class="num">${fmt(d.n_pubs)}</td><td class="num">${fmt(d.cit_total)}</td>
+    <td class="num">${d.cit_mean}</td><td class="num">${fwciPill(d.fwci_mean)}</td>
+    <td class="num">${d.pct_top10}%</td><td class="num">${d.pct_q1}%</td><td class="num">${d.pct_intl}%</td>
+    </tr>`).join('');
+  $('rankTable').innerHTML = head + body + '</tbody></table>';
+  $('rankTable').querySelectorAll('tr[data-id]').forEach(tr =>
+    tr.onclick = () => addSel(tr.getAttribute('data-id')));
+}
+function fwciPill(v){ return `<span class="pill ${v>=1?'g':'b'}">${v}</span>`; }
+function shortAreas(a){ return (a||'').split(';').slice(0,2).join(' · '); }
+
+// ---------- Comparación: tabla + figuras ----------
+function renderComparison(){
+  const s = curSel().map(findById).filter(Boolean);
+  const has = s.length>0;
+  $('comparison').style.display = has ? 'block' : 'none';
+  $('rankPanel').style.display  = has ? 'none' : 'block';
+  if(!has){ renderRank(); return; }
+
+  // Tabla comparativa
+  const metrics = [
+    ['Publicaciones', d=>fmt(d.n_pubs), null],
+    ['Citas totales', d=>fmt(d.cit_total), null],
+    ['Citas por publicación', d=>d.cit_mean, d=>d.cit_mean>=NAT_cit()],
+    ['FWCI medio', d=>d.fwci_mean, d=>d.fwci_mean>=1],
+    ['% en Top 10% mundial', d=>d.pct_top10+'%', d=>d.pct_top10>=NAT.pct_top10],
+    ['% en Q1', d=>d.pct_q1+'%', d=>d.pct_q1>=NAT.pct_q1],
+    ['% acceso abierto', d=>d.pct_oa+'%', d=>d.pct_oa>=NAT.pct_oa],
+    ['% colaboración internacional', d=>d.pct_intl+'%', d=>d.pct_intl>=NAT.pct_intl],
+    ['Áreas principales', d=>escapeHtml(d.areas), null]
+  ];
+  let html = '<table><thead><tr><th>Métrica</th>' +
+    s.map((d,i)=>`<th style="color:${colorFor(i)}">${escapeHtml(d.name)}</th>`).join('') +
+    `<th style="color:var(--muted)">Perú (ref.)</th></tr></thead><tbody>`;
+  const natRef = {'Publicaciones':fmt(NAT.total_pubs),'Citas totales':'—','Citas por publicación':'—',
+    'FWCI medio':NAT.fwci_mean,'% en Top 10% mundial':NAT.pct_top10+'%','% en Q1':NAT.pct_q1+'%',
+    '% acceso abierto':NAT.pct_oa+'%','% colaboración internacional':NAT.pct_intl+'%','Áreas principales':'—'};
+  metrics.forEach(([label,val,cmp]) => {
+    html += `<tr><td><strong>${label}</strong></td>` + s.map(d=>{
+      let cls=''; if(cmp){ cls = cmp(d)?'pill g':'pill b'; return `<td class="num"><span class="${cls}">${val(d)}</span></td>`; }
+      return `<td class="${label==='Áreas principales'?'areas':'num'}">${val(d)}</td>`;
+    }).join('') + `<td class="num" style="color:var(--muted)">${natRef[label]}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  $('cmpTable').innerHTML = html;
+
+  drawYear(s); drawPct(s); drawFwci(s); drawScatter(s);
+}
+function NAT_cit(){ return 8.14; }
+
+const LAY = {margin:{l:48,r:14,t:10,b:40},font:{family:'-apple-system,Segoe UI,Roboto,sans-serif',size:12},
+  paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',legend:{orientation:'h',y:-0.18}};
+const CFG = {displayModeBar:false,responsive:true};
+
+function drawYear(s){
+  const yrs=['2020','2021','2022','2023','2024','2025'];
+  const traces = s.map((d,i)=>({x:yrs,y:d.y,type:'bar',name:d.name,marker:{color:colorFor(i)}}));
+  Plotly.newPlot('plotYear',traces,{...LAY,barmode:'group',yaxis:{title:'Publicaciones'}},CFG);
+}
+function drawPct(s){
+  const cats=['% Top 10%','% Q1','% Acceso abierto','% Colab. intl'];
+  const traces = s.map((d,i)=>({x:cats,y:[d.pct_top10,d.pct_q1,d.pct_oa,d.pct_intl],
+    type:'bar',name:d.name,marker:{color:colorFor(i)}}));
+  Plotly.newPlot('plotPct',traces,{...LAY,barmode:'group',yaxis:{title:'%',ticksuffix:'%'}},CFG);
+}
+function drawFwci(s){
+  const traces=[{x:s.map(d=>d.name),y:s.map(d=>d.fwci_mean),type:'bar',
+    marker:{color:s.map((d,i)=>colorFor(i))},text:s.map(d=>d.fwci_mean),textposition:'auto'}];
+  const lay={...LAY,showlegend:false,yaxis:{title:'FWCI medio'},
+    shapes:[{type:'line',x0:-0.5,x1:s.length-0.5,y0:1,y1:1,line:{color:'#888',dash:'dash'}}],
+    annotations:[{x:s.length-0.5,y:1,xanchor:'right',yanchor:'bottom',text:'Promedio mundial = 1.0',showarrow:false,font:{size:11,color:'#888'}}]};
+  Plotly.newPlot('plotFwci',traces,lay,CFG);
+}
+function drawScatter(s){
+  const traces = s.map((d,i)=>({x:[d.n_pubs],y:[d.cit_mean],mode:'markers+text',type:'scatter',
+    name:d.name,text:[d.name],textposition:'top center',
+    marker:{size:Math.max(12,Math.sqrt(d.n_pubs)*1.6),color:colorFor(i),opacity:.8}}));
+  Plotly.newPlot('plotScatter',traces,{...LAY,showlegend:false,
+    xaxis:{title:'Nº de publicaciones'},yaxis:{title:'Citas por publicación'}},CFG);
+}
+
+// ---------- util ----------
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function escapeAttr(s){return escapeHtml(s);}
+
+function render(){
+  $('counthint').textContent = `${fmt(curList().length)} ${MODE==='inst'?'instituciones':'investigadores'} con ≥5 publicaciones`;
+  renderChips(); renderComparison();
+}
+// init
+search.placeholder = 'Busca una institución…';
+render();
+</script>
+</body>
+</html>
