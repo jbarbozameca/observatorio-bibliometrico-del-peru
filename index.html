@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Observatorio Bibliométrico del Perú · Scopus 1996–2026</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<style>
+  :root{
+    --bg:#0f1c24; --panel:#ffffff; --ink:#13313d; --muted:#5b6b73;
+    --accent:#1f6f8b; --accent2:#e07b39; --line:#e2e8ec; --soft:#f3f7f9;
+    --good:#1a9850; --bad:#d73027;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       color:var(--ink);background:#eef3f5;}
+  header{background:linear-gradient(135deg,#13414f,#1f6f8b);color:#fff;padding:22px 26px;}
+  header h1{margin:0;font-size:22px;font-weight:700;}
+  header p{margin:4px 0 0;font-size:13px;opacity:.85;}
+  .wrap{max-width:1240px;margin:0 auto;padding:18px;}
+  .toolbar{display:flex;flex-wrap:wrap;gap:14px;align-items:center;background:var(--panel);
+           border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:16px;}
+  .seg{display:inline-flex;border:1px solid var(--accent);border-radius:9px;overflow:hidden;}
+  .seg button{border:0;background:#fff;color:var(--accent);padding:9px 16px;font-size:14px;
+              font-weight:600;cursor:pointer;}
+  .seg button.active{background:var(--accent);color:#fff;}
+  .searchbox{flex:1;min-width:240px;position:relative;}
+  .searchbox input{width:100%;padding:10px 12px;font-size:15px;border:1px solid var(--line);
+                   border-radius:9px;outline:none;}
+  .searchbox input:focus{border-color:var(--accent);}
+  .results{position:absolute;z-index:30;top:46px;left:0;right:0;background:#fff;border:1px solid var(--line);
+           border-radius:9px;max-height:340px;overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,.12);display:none;}
+  .results.show{display:block;}
+  .results div{padding:9px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--soft);
+               display:flex;justify-content:space-between;gap:10px;}
+  .results div:hover{background:var(--soft);}
+  .results .meta{color:var(--muted);font-size:12px;white-space:nowrap;}
+  .hint{font-size:12px;color:var(--muted);}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 16px;}
+  .chip{display:inline-flex;align-items:center;gap:8px;background:#fff;border-radius:20px;
+        padding:6px 8px 6px 12px;font-size:13px;font-weight:600;border:2px solid;}
+  .chip button{border:0;background:transparent;cursor:pointer;font-size:15px;line-height:1;color:inherit;}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px;}
+  .panel h2{margin:0 0 12px;font-size:16px;color:var(--ink);}
+  table{border-collapse:collapse;width:100%;font-size:13px;}
+  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);}
+  th{background:var(--soft);font-weight:700;}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .rank tr{cursor:pointer;}
+  .rank tr:hover td{background:var(--soft);}
+  .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:700;}
+  .pill.g{background:#e3f3e6;color:var(--good);} .pill.b{background:#fbe3e1;color:var(--bad);}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:880px){.grid2{grid-template-columns:1fr;}}
+  .plot{width:100%;height:380px;}
+  .empty{color:var(--muted);font-size:14px;padding:8px 0;}
+  .legendnote{font-size:12px;color:var(--muted);margin-top:6px;}
+  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
+  select,.btn{padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:#fff;cursor:pointer;}
+  .btn.accent{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600;}
+  footer{color:var(--muted);font-size:12px;text-align:center;padding:20px;}
+  .areas{font-size:12px;color:var(--muted);}
+
+  /* ---- Fila de métrica clickeable ---- */
+  tr.metric-row{cursor:pointer;}
+  tr.metric-row:hover td{background:#eef5f8;}
+  tr.metric-row td:first-child .info-icon{
+    display:inline-block;width:16px;height:16px;border-radius:50%;
+    background:var(--accent);color:#fff;font-size:11px;font-weight:700;
+    text-align:center;line-height:16px;margin-left:8px;vertical-align:middle;
+    transition:background .15s;
+  }
+  tr.metric-row:hover td:first-child .info-icon{background:var(--accent2);}
+
+  /* ---- Modal de explicación ---- */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(15,28,36,.55);z-index:100;
+    display:none;align-items:center;justify-content:center;padding:18px;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal-card{
+    background:#fff;border-radius:14px;max-width:680px;width:100%;
+    max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);
+    animation:popin .18s ease-out;
+  }
+  @keyframes popin{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
+  .modal-head{
+    background:linear-gradient(135deg,#13414f,#1f6f8b);color:#fff;
+    padding:18px 22px;border-radius:14px 14px 0 0;
+    display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+  }
+  .modal-head h3{margin:0;font-size:18px;font-weight:700;}
+  .modal-head .sub{font-size:12px;opacity:.85;margin-top:4px;}
+  .modal-close{
+    background:transparent;border:0;color:#fff;font-size:24px;cursor:pointer;
+    line-height:1;padding:0;width:30px;height:30px;border-radius:50%;
+  }
+  .modal-close:hover{background:rgba(255,255,255,.15);}
+  .modal-body{padding:20px 22px;}
+  .modal-body h4{margin:18px 0 6px;font-size:13px;font-weight:700;color:var(--accent);
+                 text-transform:uppercase;letter-spacing:.5px;}
+  .modal-body h4:first-child{margin-top:0;}
+  .modal-body p{margin:0 0 8px;font-size:14px;line-height:1.55;color:var(--ink);}
+  .formula-box{
+    background:var(--soft);border-left:3px solid var(--accent);
+    padding:10px 14px;border-radius:6px;font-family:Consolas,Menlo,monospace;
+    font-size:13px;color:#13313d;margin:6px 0;
+  }
+  .source-pill{
+    display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;
+    border-radius:10px;text-transform:uppercase;letter-spacing:.5px;
+    background:#e3f3e6;color:var(--good);
+  }
+  .source-pill.calc{background:#fff4e6;color:#c2570a;}
+  .modal-data{
+    background:#f7fbfd;border:1px solid var(--line);border-radius:8px;
+    padding:10px 14px;font-size:13px;margin:6px 0;
+  }
+  .modal-data .row{display:flex;justify-content:space-between;gap:10px;padding:3px 0;}
+  .modal-data .row strong{color:var(--ink);}
+  /* Tarjetas de desglose por entidad */
+  .breakdown{margin:10px 0;}
+  .bd-card{
+    background:#fff;border:1px solid var(--line);border-left-width:4px;
+    border-radius:8px;padding:12px 14px;margin-bottom:10px;
+  }
+  .bd-card .bd-name{font-weight:700;font-size:14px;margin-bottom:8px;}
+  .bd-line{
+    display:flex;justify-content:space-between;gap:10px;
+    font-family:Consolas,Menlo,monospace;font-size:13px;color:#13313d;padding:2px 0;
+  }
+  .bd-line .lbl{color:var(--muted);}
+  .bd-rule{border-top:1px dashed var(--line);margin:6px 0;}
+  .bd-final{
+    background:#eef5f8;border-radius:6px;padding:6px 10px;margin-top:6px;
+    font-family:Consolas,Menlo,monospace;font-size:13px;font-weight:700;color:var(--accent);
+  }
+  .bd-note{font-size:11px;color:var(--muted);margin-top:6px;font-style:italic;}
+  .modal-actions{
+    padding:14px 22px 20px;display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;
+    border-top:1px solid var(--line);background:#fafbfc;border-radius:0 0 14px 14px;
+  }
+  .modal-actions .btn{padding:9px 14px;font-size:13px;}
+  .modal-actions .btn.accent{background:var(--accent2);border-color:var(--accent2);}
+  .note{font-size:12px;color:var(--muted);line-height:1.5;}
+
+  /* ---- Top 10 ---- */
+  .top10-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:12px;}
+  .medal{font-size:15px;}
+  #top10Table td:nth-child(2){font-weight:600;}
+  .metric-sorted{background:#eef5f8;}
+
+  /* ---- Interpretación ---- */
+  .interp details{border:1px solid var(--line);border-radius:10px;margin-bottom:10px;background:#fff;overflow:hidden;}
+  .interp summary{cursor:pointer;padding:12px 16px;font-weight:700;font-size:14px;color:var(--accent);
+                  background:var(--soft);list-style:none;display:flex;align-items:center;gap:10px;}
+  .interp summary::before{content:'▸';transition:transform .15s;font-size:12px;color:var(--muted);}
+  .interp details[open] summary::before{transform:rotate(90deg);}
+  .interp summary:hover{background:#e8f0f4;}
+  .interp .body{padding:12px 18px 16px;font-size:14px;line-height:1.6;color:var(--ink);}
+  .interp .body p{margin:0 0 10px;}
+  .interp .body p:last-child{margin-bottom:0;}
+  .interp .scale{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;}
+  .interp .scale span{padding:5px 12px;border-radius:8px;font-size:12.5px;font-weight:600;}
+  .refbox{background:#f7fbfd;border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin:10px 0;font-size:13px;}
+  .refbox .row{display:flex;justify-content:space-between;gap:10px;padding:3px 0;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Observatorio Bibliométrico del Perú</h1>
+  <p>Producción científica indexada en Scopus · 1996–2026 · Actualizado al 24 de julio de 2026 (datos SciVal al 15 de julio de 2026; 2026 es año parcial) · Busca, selecciona y compara investigadores e instituciones peruanas</p>
+</header>
+
+<div class="wrap">
+  <div class="toolbar">
+    <div class="seg" id="seg">
+      <button data-mode="inst" class="active">Instituciones</button>
+      <button data-mode="res">Investigadores</button>
+    </div>
+    <div class="searchbox">
+      <input id="search" type="text" placeholder="Escribe un nombre para buscar…" autocomplete="off">
+      <div class="results" id="results"></div>
+    </div>
+    <span class="hint" id="counthint"></span>
+  </div>
+
+  <div class="chips" id="chips"></div>
+
+  <!-- Comparación (cuando hay selección) -->
+  <div id="comparison" style="display:none;">
+    <div class="panel">
+      <h2>Tabla comparativa de métricas</h2>
+      <div id="cmpTable"></div>
+      <div class="legendnote">FWCI = Impacto Normalizado por Campo (1,0 = promedio mundial). «% Top 10%» = trabajos en el 10% más citado del mundo. Las celdas verdes/rojas comparan con la referencia nacional.</div>
+    </div>
+    <div class="grid2">
+      <div class="panel"><h2>Publicaciones por año</h2><div id="plotYear" class="plot"></div></div>
+      <div class="panel"><h2>Indicadores de impacto y apertura (%)</h2><div id="plotPct" class="plot"></div></div>
+    </div>
+    <div class="grid2">
+      <div class="panel"><h2>FWCI medio</h2><div id="plotFwci" class="plot"></div></div>
+      <div class="panel"><h2>Volumen vs. citas por publicación</h2><div id="plotScatter" class="plot"></div></div>
+    </div>
+  </div>
+
+  <!-- Top 10 nacional y por institución -->
+  <div class="panel" id="top10Panel">
+    <h2>🏆 Top 10 · nacional y por institución</h2>
+    <div class="top10-head">
+      <div class="seg" id="top10Seg">
+        <button data-scope="inst" class="active">Instituciones (nacional)</button>
+        <button data-scope="res">Investigadores (nacional)</button>
+        <button data-scope="byinst">Investigadores por institución</button>
+      </div>
+      <label>Métrica:
+        <select id="top10Metric">
+          <option value="n_pubs">Nº de publicaciones</option>
+          <option value="cit_total">Citas totales</option>
+          <option value="cit_mean">Citas por publicación</option>
+          <option value="fwci_mean">FWCI medio</option>
+          <option value="pct_top10">% en Top 10% mundial</option>
+          <option value="pct_q1">% en Q1</option>
+          <option value="pct_intl">% colaboración internacional</option>
+          <option value="pct_oa">% acceso abierto</option>
+        </select>
+      </label>
+      <label id="top10MinWrap">Mín. publicaciones:
+        <input id="top10Min" type="number" value="30" min="5" style="width:70px;padding:6px;border:1px solid var(--line);border-radius:8px;">
+      </label>
+      <label id="top10InstWrap" style="display:none;">Institución:
+        <select id="top10Inst" style="max-width:340px;"></select>
+      </label>
+    </div>
+    <div id="top10Table"></div>
+    <div class="legendnote" id="top10Note"></div>
+  </div>
+
+  <!-- Ranking por defecto -->
+  <div class="panel" id="rankPanel">
+    <h2 id="rankTitle">Ranking nacional</h2>
+    <div class="controls">
+      <label>Ordenar por:
+        <select id="sortby">
+          <option value="n_pubs">Nº de publicaciones</option>
+          <option value="cit_total">Citas totales</option>
+          <option value="cit_mean">Citas por publicación</option>
+          <option value="fwci_mean">FWCI medio</option>
+          <option value="pct_top10">% en Top 10% mundial</option>
+          <option value="pct_q1">% en Q1</option>
+          <option value="pct_intl">% colaboración internacional</option>
+        </select>
+      </label>
+      <label>Mín. publicaciones: <input id="minpubs" type="number" value="20" min="5" style="width:70px;padding:6px;border:1px solid var(--line);border-radius:8px;"></label>
+      <span class="hint">Haz clic en una fila para añadirla a la comparación.</span>
+    </div>
+    <div id="rankTable"></div>
+  </div>
+
+  <!-- Interpretación de métricas -->
+  <div class="panel interp" id="interpPanel">
+    <h2>📖 Cómo interpretar las métricas · contexto institucional y de investigador</h2>
+    <p class="note" style="margin:0 0 12px;">
+      Ninguna métrica aislada resume la calidad de una institución o de un investigador. Este apartado explica qué mide
+      cada indicador, con qué valores de referencia compararlo y qué precauciones exige su lectura. Los valores nacionales
+      que se citan corresponden al Perú, serie 1996–2026 (datos al 15 de julio de 2026).
+    </p>
+    <div id="interpBody"></div>
+  </div>
+
+  <footer>
+    <div style="margin-bottom:10px;">
+      <strong>Fuente:</strong> Scopus / SciVal · datos al 15 de julio de 2026, export del 24 de julio de 2026 · serie 1996–2026 (2026 es año parcial). Dashboard estático generado con Python + Plotly.
+      El conteo institucional contempla exclusivamente entidades con sede en el Perú; las afiliaciones extranjeras de coautores no se incluyen en el ranking institucional.
+      El criterio Q1 usa el percentil CiteScore del export de SciVal, donde 1 = top 1 % (Q1 = percentil ≤ 25).
+    </div>
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);color:var(--ink);">
+      <strong>Créditos:</strong> Dr. Joshuan J. Barboza · Investigador RENACYT Nivel Distinguido
+      <br>
+      <span style="color:var(--muted);font-size:11px;">
+        Universidad Señor de Sipán · ORCID
+        <a href="https://orcid.org/0000-0002-2896-1407" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">0000-0002-2896-1407</a>
+      </span>
+    </div>
+  </footer>
+</div>
+
+<!-- ============== Modal de explicación de métricas ============== -->
+<div class="modal-overlay" id="metricModal" aria-hidden="true" role="dialog">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <h3 id="modalTitle">—</h3>
+        <div class="sub" id="modalSubtitle">—</div>
+      </div>
+      <button class="modal-close" id="modalCloseBtn" aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-actions">
+      <button class="btn" id="modalCloseBtn2">Cerrar</button>
+      <a class="btn accent" id="modalMailBtn" href="#" target="_blank" rel="noopener">
+        ✉ Solicitar rectificación / comentar
+      </a>
+    </div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script>
+const PALETTE = ['#1f6f8b','#e07b39','#1a9850','#8e44ad','#d73027','#2c7fb8','#c9a227','#16a085','#d6336c','#34495e'];
+let MODE = 'inst';
+let DATA = {res: window.RESEARCHERS, inst: window.INSTITUTIONS};
+const NAT = window.NATIONAL;
+const YEARS = Array.from({length: NAT.y1 - NAT.y0 + 1}, (_,i) => String(NAT.y0 + i));
+let selected = {res: [], inst: []};   // arrays of ids
+
+// índice de búsqueda
+['res','inst'].forEach(k => DATA[k].forEach(d => d._s = d.name.toLowerCase()));
+
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString('es-PE');
+const curList = () => DATA[MODE];
+const curSel  = () => selected[MODE];
+const findById = id => curList().find(d => d.id === id);
+
+// ---------- Búsqueda ----------
+const search = $('search'), results = $('results');
+search.addEventListener('input', () => renderResults(search.value.trim().toLowerCase()));
+search.addEventListener('focus', () => { if(search.value.trim()) renderResults(search.value.trim().toLowerCase()); });
+document.addEventListener('click', e => { if(!e.target.closest('.searchbox')) results.classList.remove('show'); });
+
+function renderResults(q){
+  if(!q){ results.classList.remove('show'); return; }
+  const hits = curList().filter(d => d._s.includes(q)).slice(0,60);
+  results.innerHTML = hits.map(d =>
+    `<div data-id="${escapeAttr(d.id)}"><span>${escapeHtml(d.name)}</span>
+      <span class="meta">${fmt(d.n_pubs)} pubs · FWCI ${d.fwci_mean}</span></div>`).join('')
+    || '<div class="empty" style="padding:12px">Sin resultados</div>';
+  results.classList.add('show');
+  results.querySelectorAll('div[data-id]').forEach(el =>
+    el.onclick = () => { addSel(el.getAttribute('data-id')); search.value=''; results.classList.remove('show'); });
+}
+
+// ---------- Selección ----------
+function addSel(id){
+  const s = curSel();
+  if(s.includes(id)) return;
+  if(s.length >= 10){ alert('Máximo 10 elementos para comparar.'); return; }
+  s.push(id); render();
+}
+function removeSel(id){ selected[MODE] = curSel().filter(x => x!==id); render(); }
+function colorFor(i){ return PALETTE[i % PALETTE.length]; }
+
+function renderChips(){
+  const s = curSel();
+  $('chips').innerHTML = s.map((id,i) => {
+    const d = findById(id); if(!d) return '';
+    return `<span class="chip" style="border-color:${colorFor(i)};color:${colorFor(i)}">
+      ${escapeHtml(d.name)} <button data-id="${escapeAttr(id)}">&times;</button></span>`;
+  }).join('');
+  $('chips').querySelectorAll('button').forEach(b =>
+    b.onclick = () => removeSel(b.getAttribute('data-id')));
+}
+
+// ---------- Modo (toggle) ----------
+$('seg').querySelectorAll('button').forEach(b => b.onclick = () => {
+  MODE = b.dataset.mode;
+  $('seg').querySelectorAll('button').forEach(x => x.classList.toggle('active', x===b));
+  search.placeholder = MODE==='inst' ? 'Busca una institución…' : 'Busca un investigador (apellido, inicial)…';
+  $('rankTitle').textContent = MODE==='inst' ? 'Ranking de instituciones' : 'Ranking de investigadores';
+  render();
+});
+
+// ---------- Ranking ----------
+$('sortby').onchange = renderRank;
+$('minpubs').oninput = renderRank;
+function renderRank(){
+  const key = $('sortby').value;
+  const minp = Math.max(5, +$('minpubs').value || 5);
+  const rows = curList().filter(d => d.n_pubs >= minp)
+    .sort((a,b) => b[key]-a[key]).slice(0,40);
+  const head = `<table class="rank"><thead><tr>
+    <th>#</th><th>${MODE==='inst'?'Institución':'Investigador'}</th>
+    <th class="num">Pubs</th><th class="num">Citas</th><th class="num">Citas/pub</th>
+    <th class="num">FWCI</th><th class="num">% Top10%</th><th class="num">% Q1</th><th class="num">% Intl</th>
+    </tr></thead><tbody>`;
+  const body = rows.map((d,i) => `<tr data-id="${escapeAttr(d.id)}">
+    <td>${i+1}</td><td>${escapeHtml(d.name)}<div class="areas">${escapeHtml(shortAreas(d.areas))}</div></td>
+    <td class="num">${fmt(d.n_pubs)}</td><td class="num">${fmt(d.cit_total)}</td>
+    <td class="num">${d.cit_mean}</td><td class="num">${fwciPill(d.fwci_mean)}</td>
+    <td class="num">${d.pct_top10}%</td><td class="num">${d.pct_q1}%</td><td class="num">${d.pct_intl}%</td>
+    </tr>`).join('');
+  $('rankTable').innerHTML = head + body + '</tbody></table>';
+  $('rankTable').querySelectorAll('tr[data-id]').forEach(tr =>
+    tr.onclick = () => addSel(tr.getAttribute('data-id')));
+}
+function fwciPill(v){ return `<span class="pill ${v>=1?'g':'b'}">${v}</span>`; }
+function shortAreas(a){ return (a||'').split(';').slice(0,2).join(' · '); }
+
+// ---------- Catálogo de métricas (key, label, accessor, comparador) ----------
+const METRIC_DEFS = [
+  {key:'n_pubs',    label:'Publicaciones',                  val:d=>fmt(d.n_pubs),       cmp:null},
+  {key:'cit_total', label:'Citas totales',                  val:d=>fmt(d.cit_total),    cmp:null},
+  {key:'cit_mean',  label:'Citas por publicación',          val:d=>d.cit_mean,          cmp:d=>d.cit_mean>=NAT_cit()},
+  {key:'fwci_mean', label:'FWCI medio',                     val:d=>d.fwci_mean,         cmp:d=>d.fwci_mean>=1},
+  {key:'pct_top10', label:'% en Top 10% mundial',           val:d=>d.pct_top10+'%',     cmp:d=>d.pct_top10>=NAT.pct_top10},
+  {key:'pct_q1',    label:'% en Q1',                        val:d=>d.pct_q1+'%',        cmp:d=>d.pct_q1>=NAT.pct_q1},
+  {key:'pct_oa',    label:'% acceso abierto',               val:d=>d.pct_oa+'%',        cmp:d=>d.pct_oa>=NAT.pct_oa},
+  {key:'pct_intl',  label:'% colaboración internacional',   val:d=>d.pct_intl+'%',      cmp:d=>d.pct_intl>=NAT.pct_intl},
+  {key:'areas',     label:'Áreas principales',              val:d=>escapeHtml(d.areas), cmp:null},
+];
+
+// ---------- Comparación: tabla + figuras ----------
+function renderComparison(){
+  const s = curSel().map(findById).filter(Boolean);
+  const has = s.length>0;
+  $('comparison').style.display = has ? 'block' : 'none';
+  $('rankPanel').style.display  = has ? 'none' : 'block';
+  if(!has){ renderRank(); return; }
+
+  const natRef = {
+    n_pubs: fmt(NAT.total_pubs), cit_total: '—', cit_mean: NAT.cit_mean,
+    fwci_mean: NAT.fwci_mean, pct_top10: NAT.pct_top10+'%', pct_q1: NAT.pct_q1+'%',
+    pct_oa: NAT.pct_oa+'%', pct_intl: NAT.pct_intl+'%', areas: '—'
+  };
+
+  let html = '<table><thead><tr><th>Métrica</th>' +
+    s.map((d,i)=>`<th style="color:${colorFor(i)}">${escapeHtml(d.name)}</th>`).join('') +
+    `<th style="color:var(--muted)">Perú (ref.)</th></tr></thead><tbody>`;
+  METRIC_DEFS.forEach(({key,label,val,cmp}) => {
+    html += `<tr class="metric-row" data-key="${key}"><td><strong>${label}</strong><span class="info-icon" title="Click para ver fórmula y solicitar rectificación">i</span></td>` +
+      s.map(d=>{
+        if(cmp){ const cls = cmp(d)?'pill g':'pill b'; return `<td class="num"><span class="${cls}">${val(d)}</span></td>`; }
+        return `<td class="${key==='areas'?'areas':'num'}">${val(d)}</td>`;
+      }).join('') + `<td class="num" style="color:var(--muted)">${natRef[key]}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  $('cmpTable').innerHTML = html;
+
+  // wire-up clicks
+  $('cmpTable').querySelectorAll('tr.metric-row').forEach(tr => {
+    tr.onclick = () => openMetricModal(tr.getAttribute('data-key'), s);
+  });
+
+  drawYear(s); drawPct(s); drawFwci(s); drawScatter(s);
+}
+function NAT_cit(){ return NAT.cit_mean; }
+
+// ---------- Catálogo de explicaciones por métrica ----------
+// Helper: línea "label .... valor"
+function bdLine(label, value){ return `<div class="bd-line"><span class="lbl">${label}</span><span>${value}</span></div>`; }
+
+const METRIC_INFO = {
+  n_pubs: {
+    title: 'Publicaciones',
+    source: 'directo',
+    sourceLabel: 'Conteo directo del CSV de Scopus/SciVal',
+    formula: 'n_pubs(e) = |Pe|',
+    explanation: 'Número de publicaciones distintas en las que la entidad aparece (como autor, identificado por Scopus Author ID, o como afiliación institucional) en la serie 1996–2026 (2026 parcial, corte 15 de julio).',
+    interpretation: 'Volumen total de producción científica indexada. No discrimina por calidad ni impacto: es un indicador de magnitud.',
+    breakdown: d => {
+      const y = d.y || [];
+      const sum = y.reduce((a,b)=>a+b,0);
+      const cut = YEARS.indexOf('2016');
+      const oldSum = y.slice(0, cut).reduce((a,b)=>a+b,0);
+      const recent = YEARS.slice(cut).map((yr,i)=>bdLine('  '+yr, fmt(y[cut+i]||0)));
+      return [
+        '<div class="bd-line"><span class="lbl">Distribución de publicaciones por año:</span><span></span></div>',
+        bdLine(`  ${YEARS[0]}–2015 (subtotal)`, fmt(oldSum)),
+        ...recent,
+        '<div class="bd-rule"></div>',
+        bdLine('Total (suma de la serie)', fmt(sum)),
+        `<div class="bd-final">n_pubs = <b>${fmt(d.n_pubs)}</b></div>`
+      ].join('');
+    }
+  },
+  cit_total: {
+    title: 'Citas totales',
+    source: 'directo',
+    sourceLabel: 'Suma de la columna «Citations» del CSV',
+    formula: 'cit_total(e) = Σ citations_i, para todo i en Pe',
+    explanation: 'Suma acumulada de las citas recibidas por todas las publicaciones de la entidad, según el conteo de Scopus a la fecha de actualización de los datos (15 de julio de 2026).',
+    interpretation: 'Refleja el peso citacional bruto. Tiende a favorecer entidades con muchas publicaciones o con papers antiguos (que han tenido más tiempo de acumular citas).',
+    breakdown: d => [
+      bdLine('Nº de publicaciones en la serie 1996–2026', fmt(d.n_pubs)),
+      bdLine('Operación', `Σ citations_i sobre las ${fmt(d.n_pubs)} publicaciones`),
+      bdLine('Citas promedio por publicación', d.cit_mean),
+      `<div class="bd-final">cit_total = <b>${fmt(d.cit_total)}</b> citas acumuladas</div>`,
+      '<div class="bd-note">Las citas individuales por paper están disponibles en el CSV fuente (columna «Citations»).</div>'
+    ].join('')
+  },
+  cit_mean: {
+    title: 'Citas por publicación',
+    source: 'calculado',
+    sourceLabel: 'Calculado a partir de citas y nº de publicaciones',
+    formula: 'cit_mean(e) = ( Σ citations_i ) / |Pe|',
+    explanation: 'Promedio aritmético de las citas recibidas por publicación. Se calcula sumando todas las citas y dividiendo por el número total de publicaciones de la entidad.',
+    interpretation: 'Indicador de impacto medio sin normalización por campo. Comparaciones entre áreas (p.ej. medicina vs. matemáticas) deben hacerse con cautela porque las densidades citacionales difieren.',
+    breakdown: d => {
+      const exact = (d.cit_total / d.n_pubs);
+      return [
+        bdLine('Citas totales (Σ citations)', fmt(d.cit_total)),
+        bdLine('Nº de publicaciones (|Pe|)',  fmt(d.n_pubs)),
+        '<div class="bd-rule"></div>',
+        bdLine('División',  `${fmt(d.cit_total)} ÷ ${fmt(d.n_pubs)}`),
+        bdLine('Resultado exacto', exact.toFixed(4)),
+        `<div class="bd-final">cit_mean = <b>${d.cit_mean}</b> &nbsp;<span style="font-weight:400">(redondeado a 1 decimal)</span></div>`
+      ].join('');
+    }
+  },
+  fwci_mean: {
+    title: 'FWCI medio (Field-Weighted Citation Impact)',
+    source: 'directo',
+    sourceLabel: 'Calculado por SciVal; el Observatorio sólo promedia',
+    formula: 'fwci_mean(e) = ( Σ fwci_i ) / n_valid',
+    explanation: 'El FWCI es calculado por SciVal para cada publicación individual: compara las citas recibidas con las esperadas para documentos del mismo año, tipo y campo (ASJC). El Observatorio toma esos valores y reporta su media simple por entidad.',
+    interpretation: 'FWCI = 1.0 significa impacto igual al promedio mundial; > 1.0 indica impacto superior; < 1.0 inferior. Es la métrica más robusta para comparar entre disciplinas. La línea roja-discontinua en el gráfico representa el FWCI = 1 (referencia mundial).',
+    breakdown: d => {
+      const sumApprox = (d.fwci_mean * d.n_pubs);
+      const cmp = d.fwci_mean >= 1 ? 'por ENCIMA del promedio mundial (FWCI=1.0)' : 'por DEBAJO del promedio mundial (FWCI=1.0)';
+      return [
+        bdLine('Nº de publicaciones con FWCI válido', `~${fmt(d.n_pubs)}`),
+        bdLine('Σ FWCI estimada (= media × n)', sumApprox.toFixed(2)),
+        '<div class="bd-rule"></div>',
+        bdLine('División', `${sumApprox.toFixed(2)} ÷ ${fmt(d.n_pubs)}`),
+        `<div class="bd-final">fwci_mean = <b>${d.fwci_mean}</b> &nbsp;<span style="font-weight:400">→ ${cmp}</span></div>`,
+        '<div class="bd-note">Los FWCI individuales por publicación los provee SciVal y no se exponen en este dashboard; están disponibles en el CSV fuente (columna «Field-Weighted Citation Impact»). La suma se reconstruye como media × n.</div>'
+      ].join('');
+    }
+  },
+  pct_top10: {
+    title: '% en Top 10 % mundial',
+    source: 'calculado',
+    sourceLabel: 'Calculado sobre la columna «Outputs in Top Citation Percentiles»',
+    formula: 'pct_top10(e) = ( nº pubs con percentil de citaciones ≤ 10 ) / |Pe| × 100',
+    explanation: 'Porcentaje de las publicaciones de la entidad que se ubican en el 10 % más citado del mundo dentro de su campo y año. Una publicación se considera Top 10 % si su valor «Outputs in Top Citation Percentiles» (reportado por SciVal) es mayor que 0 y menor o igual a 10.',
+    interpretation: 'Indicador robusto de excelencia investigativa: mide proporción de producción de élite. Resiste outliers (un único paper muy citado no infla la métrica).',
+    breakdown: d => {
+      const k = Math.round(d.pct_top10 * d.n_pubs / 100);
+      return [
+        bdLine('Nº de publicaciones de la entidad (|Pe|)', fmt(d.n_pubs)),
+        bdLine('Publicaciones que cayeron en el Top 10 % mundial', `≈ ${fmt(k)}`),
+        '<div class="bd-rule"></div>',
+        bdLine('Cálculo', `${fmt(k)} ÷ ${fmt(d.n_pubs)} × 100`),
+        `<div class="bd-final">pct_top10 = <b>${d.pct_top10}%</b></div>`,
+        '<div class="bd-note">El conteo exacto de papers en Top 10 % se reconstruye a partir del porcentaje agregado; el valor crudo por paper está en la columna «Outputs in Top Citation Percentiles» del CSV.</div>'
+      ].join('');
+    }
+  },
+  pct_q1: {
+    title: '% en Q1 (cuartil 1 SJR/CiteScore)',
+    source: 'calculado',
+    sourceLabel: 'Derivado del CiteScore percentile de cada paper',
+    formula: 'pct_q1(e) = ( nº pubs con CiteScore percentile ≤ 25 ) / |Pe| × 100',
+    explanation: 'Una publicación se considera Q1 si la revista en la que apareció está en el cuartil superior de su categoría según CiteScore en el año de publicación. En el export de SciVal el percentil está invertido (1 = top 1 %), por lo que Q1 equivale a percentil ≤ 25.',
+    interpretation: 'Refleja presencia en revistas de mayor prestigio editorial. Cuidado: alta proporción Q1 no garantiza alto impacto en citaciones; la revista y el paper son cosas distintas.',
+    breakdown: d => {
+      const k = Math.round(d.pct_q1 * d.n_pubs / 100);
+      return [
+        bdLine('Nº de publicaciones de la entidad (|Pe|)', fmt(d.n_pubs)),
+        bdLine('Publicaciones aparecidas en revistas Q1', `≈ ${fmt(k)}`),
+        '<div class="bd-rule"></div>',
+        bdLine('Cálculo', `${fmt(k)} ÷ ${fmt(d.n_pubs)} × 100`),
+        `<div class="bd-final">pct_q1 = <b>${d.pct_q1}%</b></div>`,
+        '<div class="bd-note">El criterio Q1 se evalúa por paper usando «CiteScore percentile (publication year) *» ≤ 25 del CSV fuente (percentil invertido: 1 = top 1 %).</div>'
+      ].join('');
+    }
+  },
+  pct_oa: {
+    title: '% en acceso abierto',
+    source: 'calculado',
+    sourceLabel: 'Derivado de la columna «Open Access» del CSV',
+    formula: 'pct_oa(e) = ( nº pubs con cualquier modalidad de OA ) / |Pe| × 100',
+    explanation: 'Una publicación se cuenta como acceso abierto si la columna «Open Access» de Scopus contiene cualquier valor distinto de vacío o «-» (incluyendo Gold, Hybrid Gold, Green, Bronze).',
+    interpretation: 'Mide compromiso con ciencia abierta. Una proporción alta indica que la producción de la entidad es accesible públicamente, alineado con políticas del CONCYTEC, UNESCO y Plan S.',
+    breakdown: d => {
+      const k = Math.round(d.pct_oa * d.n_pubs / 100);
+      return [
+        bdLine('Nº de publicaciones de la entidad (|Pe|)', fmt(d.n_pubs)),
+        bdLine('Publicaciones con acceso abierto (cualquier modalidad)', `≈ ${fmt(k)}`),
+        '<div class="bd-rule"></div>',
+        bdLine('Cálculo', `${fmt(k)} ÷ ${fmt(d.n_pubs)} × 100`),
+        `<div class="bd-final">pct_oa = <b>${d.pct_oa}%</b></div>`,
+        '<div class="bd-note">Modalidades de OA incluidas: Gold, Hybrid Gold, Green, Bronze, según lo reporte Scopus.</div>'
+      ].join('');
+    }
+  },
+  pct_intl: {
+    title: '% en colaboración internacional',
+    source: 'calculado',
+    sourceLabel: 'Derivado de «Number of Countries/Regions» del CSV',
+    formula: 'pct_intl(e) = ( nº pubs con ≥ 2 países en las afiliaciones ) / |Pe| × 100',
+    explanation: 'Una publicación se considera colaboración internacional si tiene autores con afiliación en al menos dos países distintos. El conteo de países lo provee SciVal por publicación.',
+    interpretation: 'Indica apertura de la entidad a redes globales. La literatura cienciométrica muestra correlación positiva consistente entre colaboración internacional y mayor impacto en citaciones.',
+    breakdown: d => {
+      const k = Math.round(d.pct_intl * d.n_pubs / 100);
+      return [
+        bdLine('Nº de publicaciones de la entidad (|Pe|)', fmt(d.n_pubs)),
+        bdLine('Publicaciones con coautoría internacional (≥ 2 países)', `≈ ${fmt(k)}`),
+        '<div class="bd-rule"></div>',
+        bdLine('Cálculo', `${fmt(k)} ÷ ${fmt(d.n_pubs)} × 100`),
+        `<div class="bd-final">pct_intl = <b>${d.pct_intl}%</b></div>`,
+        '<div class="bd-note">El conteo de países lo provee SciVal directamente por publicación (columna «Number of Countries/Regions»).</div>'
+      ].join('');
+    }
+  },
+  areas: {
+    title: 'Áreas principales',
+    source: 'calculado',
+    sourceLabel: 'Frecuencia de campos ASJC en las publicaciones de la entidad',
+    formula: 'top 4 áreas por frecuencia, separadas por «;»',
+    explanation: 'Se cuentan las apariciones de cada campo ASJC (All Science Journal Classification) en las publicaciones de la entidad y se reportan las cuatro más frecuentes en orden descendente.',
+    interpretation: 'Sirve para identificar la huella disciplinar de la entidad. Una publicación puede estar clasificada en varios campos, así que el conteo es por aparición, no por publicación única.',
+    breakdown: d => {
+      const list = (d.areas||'').split(';').map(s=>s.trim()).filter(Boolean);
+      const items = list.map((a,i)=>`<div class="bd-line"><span class="lbl">#${i+1}</span><span>${escapeHtml(a)}</span></div>`).join('');
+      return [
+        bdLine('Nº de publicaciones analizadas', fmt(d.n_pubs)),
+        '<div class="bd-rule"></div>',
+        '<div class="bd-line"><span class="lbl">Top 4 campos ASJC (orden decreciente de frecuencia):</span><span></span></div>',
+        items,
+        `<div class="bd-note">Cada publicación puede tener varios campos ASJC asignados; el conteo es por aparición, no por publicación distinta.</div>`
+      ].join('');
+    }
+  },
+};
+
+// ---------- Modal: apertura, render y cierre ----------
+function openMetricModal(key, entities){
+  const info = METRIC_INFO[key];
+  if(!info) return;
+  const ents = entities || curSel().map(findById).filter(Boolean);
+
+  $('modalTitle').textContent = info.title;
+  $('modalSubtitle').textContent = info.source === 'directo'
+    ? 'Tomado directamente de Scopus / SciVal'
+    : 'Calculado por la herramienta sobre datos de Scopus / SciVal';
+
+  const pillCls = info.source === 'directo' ? '' : 'calc';
+  const pillLabel = info.source === 'directo' ? 'Fuente directa' : 'Calculado';
+
+  // Desglose paso a paso por entidad (tarjeta por cada una)
+  let breakdownHtml = '';
+  ents.forEach((d,i) => {
+    const color = colorFor(i);
+    breakdownHtml += `
+      <div class="bd-card" style="border-left-color:${color}">
+        <div class="bd-name" style="color:${color}">${escapeHtml(d.name)}</div>
+        ${info.breakdown ? info.breakdown(d) : ''}
+      </div>`;
+  });
+  // Referencia nacional (solo para métricas con valor nacional)
+  const natMap = {
+    n_pubs:    {label:'Publicaciones totales del Perú (1996–2026)', val: fmt(NAT.total_pubs)},
+    cit_mean:  {label:'Citas por publicación (promedio nacional)',  val: NAT.cit_mean},
+    fwci_mean: {label:'FWCI medio nacional',                       val: NAT.fwci_mean},
+    pct_top10: {label:'% Top 10 % nacional',                       val: NAT.pct_top10+'%'},
+    pct_q1:    {label:'% Q1 nacional',                             val: NAT.pct_q1+'%'},
+    pct_oa:    {label:'% OA nacional',                             val: NAT.pct_oa+'%'},
+    pct_intl:  {label:'% colaboración internacional nacional',     val: NAT.pct_intl+'%'},
+  };
+  let natBlock = '';
+  if (natMap[key]) {
+    natBlock = `
+      <h4>Referencia nacional (Perú)</h4>
+      <div class="modal-data">
+        <div class="row"><span class="lbl">${natMap[key].label}</span><strong>${natMap[key].val}</strong></div>
+      </div>`;
+  }
+
+  $('modalBody').innerHTML = `
+    <p><span class="source-pill ${pillCls}">${pillLabel}</span> &nbsp; <span style="font-size:12px;color:var(--muted)">${escapeHtml(info.sourceLabel)}</span></p>
+
+    <h4>Fórmula / regla</h4>
+    <div class="formula-box">${escapeHtml(info.formula)}</div>
+
+    <h4>¿Qué significa?</h4>
+    <p>${escapeHtml(info.explanation)}</p>
+
+    <h4>Cómo interpretarlo</h4>
+    <p>${escapeHtml(info.interpretation)}</p>
+
+    <h4>Desglose del cálculo</h4>
+    <div class="breakdown">${breakdownHtml}</div>
+
+    ${natBlock}
+
+    <p class="note">¿Detectaste un error, un conteo dudoso o quieres aportar una observación metodológica? El botón de abajo abre tu cliente de correo con un mensaje pre-redactado dirigido al autor del Observatorio.</p>
+  `;
+
+  // construir mailto con valores mostrados
+  const ent = ents[0];
+  const valFor = (d) => {
+    switch(key){
+      case 'n_pubs':    return fmt(d.n_pubs);
+      case 'cit_total': return fmt(d.cit_total);
+      case 'cit_mean':  return d.cit_mean;
+      case 'fwci_mean': return d.fwci_mean;
+      case 'pct_top10': return d.pct_top10 + '%';
+      case 'pct_q1':    return d.pct_q1 + '%';
+      case 'pct_oa':    return d.pct_oa + '%';
+      case 'pct_intl':  return d.pct_intl + '%';
+      case 'areas':     return d.areas;
+      default:          return '';
+    }
+  };
+  const subj = `[Observatorio Bibliométrico] Observación sobre «${info.title}» en ${ent ? ent.name : 'una entidad'}`;
+  const lines = [
+    'Estimado Dr. Barboza,',
+    '',
+    `Le escribo en relación con la métrica «${info.title}» mostrada en el Observatorio Bibliométrico del Perú.`,
+    '',
+    'Valores mostrados:'
+  ];
+  ents.forEach(d => {
+    lines.push(`  • ${d.name}: ${valFor(d)}  (n_pubs=${fmt(d.n_pubs)}, cit_total=${fmt(d.cit_total)})`);
+  });
+  lines.push('');
+  lines.push(`Fórmula aplicada: ${info.formula}`);
+  lines.push('');
+  lines.push('Mi observación / propuesta de rectificación:');
+  lines.push('(Por favor describa aquí su comentario, el valor esperado o la evidencia que respalda la corrección.)');
+  lines.push('');
+  lines.push('Atentamente,');
+  lines.push('[Su nombre]');
+  lines.push('[Institución / ORCID]');
+  const body = lines.join('\n');
+  const mailto = `mailto:jbarbozameca@gmail.com?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+  $('modalMailBtn').setAttribute('href', mailto);
+
+  $('metricModal').classList.add('show');
+  $('metricModal').setAttribute('aria-hidden','false');
+}
+
+function closeMetricModal(){
+  $('metricModal').classList.remove('show');
+  $('metricModal').setAttribute('aria-hidden','true');
+}
+$('modalCloseBtn').onclick  = closeMetricModal;
+$('modalCloseBtn2').onclick = closeMetricModal;
+$('metricModal').addEventListener('click', e => {
+  if(e.target === $('metricModal')) closeMetricModal();
+});
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape' && $('metricModal').classList.contains('show')) closeMetricModal();
+});
+
+const LAY = {margin:{l:48,r:14,t:10,b:40},font:{family:'-apple-system,Segoe UI,Roboto,sans-serif',size:12},
+  paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',legend:{orientation:'h',y:-0.18}};
+const CFG = {displayModeBar:false,responsive:true};
+
+function drawYear(s){
+  const traces = s.map((d,i)=>({x:YEARS,y:d.y,type:'scatter',mode:'lines+markers',
+    name:d.name,line:{color:colorFor(i),width:2},marker:{size:5,color:colorFor(i)}}));
+  Plotly.newPlot('plotYear',traces,{...LAY,yaxis:{title:'Publicaciones'},
+    annotations:[{x:YEARS[YEARS.length-1],y:0,yref:'paper',yanchor:'top',yshift:-24,xanchor:'right',
+      text:'2026: año parcial (corte 15-jul)',showarrow:false,font:{size:10,color:'#888'}}]},CFG);
+}
+function drawPct(s){
+  const cats=['% Top 10%','% Q1','% Acceso abierto','% Colab. intl'];
+  const traces = s.map((d,i)=>({x:cats,y:[d.pct_top10,d.pct_q1,d.pct_oa,d.pct_intl],
+    type:'bar',name:d.name,marker:{color:colorFor(i)}}));
+  Plotly.newPlot('plotPct',traces,{...LAY,barmode:'group',yaxis:{title:'%',ticksuffix:'%'}},CFG);
+}
+function drawFwci(s){
+  const traces=[{x:s.map(d=>d.name),y:s.map(d=>d.fwci_mean),type:'bar',
+    marker:{color:s.map((d,i)=>colorFor(i))},text:s.map(d=>d.fwci_mean),textposition:'auto'}];
+  const lay={...LAY,showlegend:false,yaxis:{title:'FWCI medio'},
+    shapes:[{type:'line',x0:-0.5,x1:s.length-0.5,y0:1,y1:1,line:{color:'#888',dash:'dash'}}],
+    annotations:[{x:s.length-0.5,y:1,xanchor:'right',yanchor:'bottom',text:'Promedio mundial = 1.0',showarrow:false,font:{size:11,color:'#888'}}]};
+  Plotly.newPlot('plotFwci',traces,lay,CFG);
+}
+function drawScatter(s){
+  const traces = s.map((d,i)=>({x:[d.n_pubs],y:[d.cit_mean],mode:'markers+text',type:'scatter',
+    name:d.name,text:[d.name],textposition:'top center',
+    marker:{size:Math.max(12,Math.sqrt(d.n_pubs)*1.6),color:colorFor(i),opacity:.8}}));
+  Plotly.newPlot('plotScatter',traces,{...LAY,showlegend:false,
+    xaxis:{title:'Nº de publicaciones'},yaxis:{title:'Citas por publicación'}},CFG);
+}
+
+// =====================================================================
+//  TOP 10 · nacional y por institución
+// =====================================================================
+const RES_BY_ID = {};
+window.RESEARCHERS.forEach(d => RES_BY_ID[d.id] = d);
+let TOP10_SCOPE = 'inst';   // 'inst' | 'res' | 'byinst'
+
+const METRIC_LABELS = {
+  n_pubs:'Nº de publicaciones', cit_total:'Citas totales', cit_mean:'Citas por publicación',
+  fwci_mean:'FWCI medio', pct_top10:'% en Top 10% mundial', pct_q1:'% en Q1',
+  pct_intl:'% colaboración internacional', pct_oa:'% acceso abierto'
+};
+
+// poblar selector de instituciones (ordenadas por volumen)
+(function(){
+  const sel = $('top10Inst');
+  const opts = window.INSTITUTIONS
+    .filter(d => (window.INST_TOP[d.id]||[]).length > 0)
+    .map(d => `<option value="${escapeAttr(d.id)}">${escapeHtml(d.name)} (${fmt(d.n_pubs)} pubs)</option>`);
+  sel.innerHTML = opts.join('');
+})();
+
+$('top10Seg').querySelectorAll('button').forEach(b => b.onclick = () => {
+  TOP10_SCOPE = b.dataset.scope;
+  $('top10Seg').querySelectorAll('button').forEach(x => x.classList.toggle('active', x===b));
+  $('top10InstWrap').style.display = TOP10_SCOPE==='byinst' ? '' : 'none';
+  $('top10MinWrap').style.display  = TOP10_SCOPE==='byinst' ? 'none' : '';
+  renderTop10();
+});
+$('top10Metric').onchange = renderTop10;
+$('top10Min').oninput = renderTop10;
+$('top10Inst').onchange = renderTop10;
+
+function pairToObj(p){
+  const base = RES_BY_ID[p[0]] || {};
+  return { id:p[0], name: base.name || p[0], areas: base.areas || '',
+    n_pubs:p[1], cit_total:p[2], cit_mean:p[3], fwci_mean:p[4],
+    pct_top10:p[5], pct_q1:p[6], pct_oa:p[7], pct_intl:p[8] };
+}
+
+function renderTop10(){
+  const key = $('top10Metric').value;
+  let rows, note, entLabel;
+  if(TOP10_SCOPE === 'byinst'){
+    const instId = $('top10Inst').value;
+    rows = (window.INST_TOP[instId] || []).map(pairToObj);
+    entLabel = 'Investigador';
+    note = 'Métricas calculadas <b>solo sobre las publicaciones del investigador con esta institución</b> (mín. 5). ' +
+           'Se excluyen las publicaciones con más de 100 autores (hiperautoría) del cálculo de pertenencia institucional. ' +
+           'Haz clic en una fila para añadir al comparador de investigadores.';
+  } else {
+    const minp = Math.max(5, +$('top10Min').value || 5);
+    const list = TOP10_SCOPE==='inst' ? window.INSTITUTIONS : window.RESEARCHERS;
+    rows = list.filter(d => d.n_pubs >= minp);
+    entLabel = TOP10_SCOPE==='inst' ? 'Institución' : 'Investigador';
+    note = `Top 10 nacional por «${METRIC_LABELS[key]}» entre ${TOP10_SCOPE==='inst'?'instituciones peruanas':'investigadores'} ` +
+           `con ≥ ${fmt(minp)} publicaciones (1996–2026). En métricas porcentuales o promedio, el umbral mínimo evita que ` +
+           'entidades con muy pocos trabajos encabecen la lista por azar. Haz clic en una fila para añadirla a la comparación.';
+  }
+  rows = rows.slice().sort((a,b) => (b[key]||0) - (a[key]||0)).slice(0,10);
+
+  const medal = i => i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
+  const cols = [
+    ['n_pubs', d=>fmt(d.n_pubs), 'Pubs'], ['cit_total', d=>fmt(d.cit_total), 'Citas'],
+    ['cit_mean', d=>d.cit_mean, 'Citas/pub'], ['fwci_mean', d=>fwciPill(d.fwci_mean), 'FWCI'],
+    ['pct_top10', d=>d.pct_top10+'%', '% Top10%'], ['pct_q1', d=>d.pct_q1+'%', '% Q1'],
+    ['pct_intl', d=>d.pct_intl+'%', '% Intl'], ['pct_oa', d=>d.pct_oa+'%', '% OA'],
+  ];
+  const head = `<table class="rank"><thead><tr><th>#</th><th>${entLabel}</th>` +
+    cols.map(c=>`<th class="num ${c[0]===key?'metric-sorted':''}">${c[2]}</th>`).join('') + '</tr></thead><tbody>';
+  const body = rows.map((d,i) => `<tr data-id="${escapeAttr(d.id)}">
+    <td class="medal">${medal(i)}</td>
+    <td>${escapeHtml(d.name)}<div class="areas">${escapeHtml(shortAreas(d.areas))}</div></td>` +
+    cols.map(c=>`<td class="num ${c[0]===key?'metric-sorted':''}">${c[1](d)}</td>`).join('') + '</tr>').join('');
+  $('top10Table').innerHTML = rows.length ? head + body + '</tbody></table>'
+    : '<div class="empty">Sin datos para esta selección.</div>';
+  $('top10Note').innerHTML = note;
+
+  $('top10Table').querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = () => {
+    const id = tr.getAttribute('data-id');
+    if(TOP10_SCOPE === 'inst'){ if(MODE!=='inst') switchMode('inst'); addSel(id); }
+    else { if(MODE!=='res') switchMode('res'); addSel(id); }
+  });
+}
+
+function switchMode(m){
+  const btn = [...$('seg').querySelectorAll('button')].find(b => b.dataset.mode===m);
+  if(btn) btn.onclick ? btn.click() : null;
+}
+
+// =====================================================================
+//  INTERPRETACIÓN DE MÉTRICAS
+// =====================================================================
+(function renderInterp(){
+  const N = NAT;
+  const html = `
+  <details open>
+    <summary>Referencia nacional rápida (Perú, 1996–2026)</summary>
+    <div class="body">
+      <p>Todo indicador de este observatorio se lee mejor <b>contra la referencia nacional</b>. Estos son los valores del
+      Perú con los que se comparan las celdas verdes/rojas de las tablas:</p>
+      <div class="refbox">
+        <div class="row"><span>Publicaciones totales</span><strong>${fmt(N.total_pubs)}</strong></div>
+        <div class="row"><span>Citas por publicación</span><strong>${N.cit_mean}</strong></div>
+        <div class="row"><span>FWCI medio</span><strong>${N.fwci_mean}</strong></div>
+        <div class="row"><span>% en Top 10 % mundial</span><strong>${N.pct_top10}%</strong></div>
+        <div class="row"><span>% en Q1</span><strong>${N.pct_q1}%</strong></div>
+        <div class="row"><span>% acceso abierto</span><strong>${N.pct_oa}%</strong></div>
+        <div class="row"><span>% colaboración internacional</span><strong>${N.pct_intl}%</strong></div>
+      </div>
+      <p>Una entidad «por encima del Perú» en FWCI, % Top 10 % o % Q1 tiene un perfil de impacto superior al promedio
+      del sistema peruano; estar por encima del promedio nacional no implica necesariamente estar por encima del promedio mundial
+      (para eso la referencia es FWCI = 1,0 y % Top 10 % = 10 %).</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Volumen (publicaciones y citas totales): magnitud, no calidad</summary>
+    <div class="body">
+      <p>El número de publicaciones y las citas totales miden <b>tamaño y trayectoria</b>: crecen con los años de actividad,
+      con la cantidad de investigadores (en instituciones) y con la intensidad de colaboración. Son útiles para dimensionar
+      una entidad, pero <b>no permiten concluir calidad</b>: una institución grande casi siempre superará en volumen a una
+      pequeña de mayor impacto relativo.</p>
+      <p>Al comparar volumen conviene hacerlo entre entidades de tamaño y antigüedad similares, o pasar a indicadores
+      normalizados (FWCI, % Top 10 %, % Q1). Recuerde además que las citas se acumulan con el tiempo: un artículo de 2010
+      ha tenido 16 años para ser citado; uno de 2025, apenas meses.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>FWCI: el impacto normalizado por campo (la métrica más comparable)</summary>
+    <div class="body">
+      <p>El <b>Field-Weighted Citation Impact</b> divide las citas recibidas entre las esperadas para publicaciones del mismo
+      año, tipo de documento y campo temático. Por construcción, el promedio mundial es 1,0, lo que permite comparar
+      entidades de disciplinas distintas (algo que las citas crudas no permiten).</p>
+      <div class="scale">
+        <span style="background:#fbe3e1;color:#d73027">&lt; 0,8 · por debajo del mundo</span>
+        <span style="background:#fff4e6;color:#c2570a">0,8 – 1,2 · en línea con el mundo</span>
+        <span style="background:#e3f3e6;color:#1a9850">1,2 – 2 · impacto alto</span>
+        <span style="background:#d9efdc;color:#166b38">&gt; 2 · impacto muy alto</span>
+      </div>
+      <p><b>Precauciones.</b> El FWCI es un promedio y es sensible a valores extremos: un solo artículo hipercitado
+      (p. ej., consorcios tipo Global Burden of Disease, con FWCI individuales de varios cientos) puede elevar el promedio de
+      toda una institución. En investigadores con pocas publicaciones el FWCI es inestable; interprételo junto al número de
+      publicaciones. El FWCI medio del Perú es ${N.fwci_mean}.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Excelencia: % en Top 10 % mundial y % en Q1</summary>
+    <div class="body">
+      <p>El <b>% en Top 10 %</b> mide qué proporción de la producción está entre lo más citado del mundo en su campo y año.
+      La línea de base mundial es, por construcción, 10 %: valores superiores indican una cartera con presencia de élite.
+      Es más robusto que el FWCI porque un único artículo extraordinario no lo infla. Perú: ${N.pct_top10}%.</p>
+      <p>El <b>% en Q1</b> mide en qué revistas se publica: proporción de artículos en revistas del cuartil superior
+      (percentil CiteScore ≤ 25 en este export, donde 1 = top 1 %). Refleja la ambición editorial, pero <b>la revista no es
+      el artículo</b>: publicar en Q1 no garantiza ser citado, y hay excelente ciencia en revistas regionales fuera del Q1.
+      Perú: ${N.pct_q1}%.</p>
+      <p>Leídos juntos: % Q1 alto con % Top 10 % bajo sugiere presencia en buenas revistas sin traducción todavía en citas;
+      lo inverso sugiere trabajos muy citados desde revistas menos selectivas (frecuente en temas emergentes o de salud pública).</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Apertura y colaboración: % acceso abierto y % internacional</summary>
+    <div class="body">
+      <p>El <b>% de acceso abierto</b> (cualquier vía: Gold, Hybrid, Green, Bronze) indica qué tan accesible es la producción.
+      Se alinea con las políticas de CONCYTEC, UNESCO y los mandatos de financiadores. Perú: ${N.pct_oa}%.</p>
+      <p>El <b>% de colaboración internacional</b> (autores de ≥ 2 países) se asocia de forma consistente con mayor impacto
+      citacional. En sistemas científicos de tamaño medio como el peruano suele ser alto (Perú: ${N.pct_intl}%). Un valor muy
+      alto en un investigador puede reflejar pertenencia a grandes consorcios (física de partículas, GBD), donde la
+      contribución individual es difícil de aislar; un valor muy bajo en una universidad sugiere redes por desarrollar.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Métricas de institución vs. métricas de investigador: no se leen igual</summary>
+    <div class="body">
+      <p><b>Instituciones.</b> Sus métricas promedian carteras enormes y heterogéneas: mezclan disciplinas con culturas de
+      citación distintas, sedes, hospitales asociados y consorcios. El perfil disciplinar («Áreas principales») explica gran
+      parte de las diferencias: una universidad con mucha medicina clínica tendrá naturalmente más citas por publicación que
+      una centrada en ingeniería o humanidades. Compare instituciones de misión similar y use FWCI antes que citas crudas.</p>
+      <p><b>Investigadores.</b> El conteo usa el Scopus Author ID para desambiguar, pero las métricas individuales exigen más
+      cautela: no distinguen el rol en la autoría (primer autor, corresponsal o coautor número 200), premian la hiperautoría
+      (consorcios con cientos de firmantes generan cientos de «publicaciones» por integrante) y son inestables con pocos
+      trabajos. En el Top 10 por institución, este observatorio excluye las publicaciones con más de 100 autores del cálculo
+      de pertenencia y calcula las métricas solo sobre la producción del investigador con esa afiliación.</p>
+      <p>Ninguna de estas métricas mide docencia, formación de investigadores, transferencia tecnológica ni impacto social.
+      Úselas como insumo de evaluación (p. ej., RENACYT, licenciamiento, rankings), nunca como veredicto único —en línea con
+      la Declaración DORA y el Manifiesto de Leiden.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Limitaciones de los datos de esta edición</summary>
+    <div class="body">
+      <p><b>Ventana de citación:</b> las publicaciones de 2024–2026 aún acumulan citas; sus FWCI, % Top 10 % y citas/publicación
+      subestiman el impacto real de las cohortes recientes. <b>2026 es un año parcial</b> (datos al 15 de julio de 2026): la
+      aparente caída en la serie anual de 2026 es un artefacto del corte, no una disminución real de la producción.</p>
+      <p><b>Cobertura:</b> Scopus subrepresenta revistas en español, humanidades, ciencias sociales y publicaciones regionales
+      no indexadas. <b>Afiliaciones:</b> el conteo institucional depende de la normalización de afiliaciones de Scopus; el
+      ranking institucional incluye solo entidades con sede en el Perú (allow-list curada de ${fmt(window.INSTITUTIONS.length)}
+      instituciones). <b>Autoría:</b> errores de desambiguación del Scopus Author ID pueden dividir o fusionar perfiles.
+      Si detecta una inconsistencia, use el botón de rectificación en el detalle de cada métrica.</p>
+    </div>
+  </details>`;
+  $('interpBody').innerHTML = html;
+})();
+
+// ---------- util ----------
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function escapeAttr(s){return escapeHtml(s);}
+
+function render(){
+  $('counthint').textContent = `${fmt(curList().length)} ${MODE==='inst'?'instituciones':'investigadores'} con ≥5 publicaciones`;
+  renderChips(); renderComparison();
+}
+// init
+search.placeholder = 'Busca una institución…';
+render();
+renderTop10();
+</script>
+</body>
+</html>
